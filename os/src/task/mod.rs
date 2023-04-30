@@ -146,21 +146,21 @@ impl TaskManager {
         }
     }
 
-    // 获取当前任务的系统时间
+    /// 获取当前任务的系统时间
     fn get_syscall_times_of_current_task(&self) -> [u32; MAX_SYSCALL_NUM] {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].syscall_times
     }
 
-    // 获取当前任务的开始时间
+    /// 获取当前任务的开始时间
     fn get_start_time_of_current_task(&self) -> usize {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].start_time
     }
 
-    // 改变调用次数
+    /// 改变调用次数
     fn change_syscall_time(&self, syscall_id: usize) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
@@ -189,15 +189,17 @@ fn mark_current_exited() {
     TASK_MANAGER.mark_current_exited();
 }
 
+/// 获取当前任务的系统时间
 pub fn get_syscall_times_of_current_task() -> [u32; MAX_SYSCALL_NUM] {
     TASK_MANAGER.get_syscall_times_of_current_task()
 }
 
+/// 获取当前任务的开始时间
 pub fn get_start_time_of_current_task() -> usize {
     TASK_MANAGER.get_start_time_of_current_task()
 }
 
-// 改变调用次数
+/// 改变调用次数
 pub fn change_syscall_time(syscall_id: usize) {
     TASK_MANAGER.change_syscall_time(syscall_id);
 }
