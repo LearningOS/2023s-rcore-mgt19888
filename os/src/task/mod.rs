@@ -14,9 +14,11 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_us;
+
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
@@ -54,6 +56,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            syscall_times: [0 as u32; MAX_SYSCALL_NUM],
+            start_time: 0 as usize,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -125,6 +129,12 @@ impl TaskManager {
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
+            
+            // 当运行下一个任务时，记录该任务的开始时间
+            if  inner.tasks[next].start_time == 0{
+                inner.tasks[next].start_time = get_time_us();
+            } else {}
+            
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
             unsafe {
@@ -134,6 +144,27 @@ impl TaskManager {
         } else {
             panic!("All applications completed!");
         }
+    }
+
+    // 获取当前任务的系统时间
+    fn get_syscall_times_of_current_task(&self) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times
+    }
+
+    // 获取当前任务的开始时间
+    fn get_start_time_of_current_task(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].start_time
+    }
+
+    // 改变调用次数
+    fn change_syscall_time(&self, syscall_id: usize) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].syscall_times[syscall_id] += 1;
     }
 }
 
@@ -156,6 +187,19 @@ fn mark_current_suspended() {
 /// Change the status of current `Running` task into `Exited`.
 fn mark_current_exited() {
     TASK_MANAGER.mark_current_exited();
+}
+
+pub fn get_syscall_times_of_current_task() -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_syscall_times_of_current_task()
+}
+
+pub fn get_start_time_of_current_task() -> usize {
+    TASK_MANAGER.get_start_time_of_current_task()
+}
+
+// 改变调用次数
+pub fn change_syscall_time(syscall_id: usize) {
+    TASK_MANAGER.change_syscall_time(syscall_id);
 }
 
 /// Suspend the current 'Running' task and run the next task in task list.
