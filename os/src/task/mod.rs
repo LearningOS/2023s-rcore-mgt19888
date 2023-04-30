@@ -85,8 +85,10 @@ impl TaskManager {
         let task0 = &mut inner.tasks[0];
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
-        drop(inner);
         let mut _unused = TaskContext::zero_init();
+        inner.tasks[0].start_time = get_time_us();
+        drop(inner);
+        
         // before this, we should drop local variables that must be dropped manually
         unsafe {
             __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
